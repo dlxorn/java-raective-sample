@@ -1,9 +1,6 @@
 package study.ms.reactive.service;
 
-import java.util.function.Function;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import study.ms.reactive.collection.SampleCollection;
@@ -25,7 +22,7 @@ public class SampleService {
   public SampleService(SampleRepository sampleRepository, WebClient.Builder webClientBuilder,
       SampleWebClientRepository sampleWebClientRepository) {
     this.sampleRepository = sampleRepository;
-    this.webClient = webClientBuilder.baseUrl("https://jsonplaceholder.typicode.com").build();
+    this.webClient = webClientBuilder.baseUrl("https://1jsonplaceholder.typicode.com").build();
     this.sampleWebClientRepository = sampleWebClientRepository;
   }
 
@@ -54,9 +51,19 @@ public class SampleService {
 
   public Mono<SampleWebClientCollection> postDataByWebClient(String id) {
     // TODO flatmap과 map 의 차이 확인 필요!
-    return   webClient.get().uri("/todos/{id}", id)
+    return webClient.get().uri("/todos/{id}", id)
         .retrieve().bodyToMono(SampleWebclientDTO.class)
+        .log()
+        //Exception handler에서 오류가 터지지 않도록 하기 위해
+        //on ErrorResume를 쓰면, 에러난 값을 바꿀 순 있지만
+        //그 결과가 아래처럼 쭉 내려간다.
+        //onErrorStop은 작동을 하지 않는 것 같다.
+        .onErrorStop()
+     //   .onErrorResume((o)-> Mono.just(new SampleWebclientDTO()))
+        .doOnNext((o) ->   System.out.println("next!"))
+        .doOnSuccess((o) -> System.out.println("success!!"))
         .flatMap(o -> {
+              System.out.println("진행 여부 확인");
               SampleWebClientCollection sampleWebClientCollection = new SampleWebClientCollection();
               sampleWebClientCollection.setCompleted(o.getCompleted());
               sampleWebClientCollection.setId(o.getId());
@@ -66,7 +73,6 @@ public class SampleService {
             }
         );
   }
-
 
 
 }
