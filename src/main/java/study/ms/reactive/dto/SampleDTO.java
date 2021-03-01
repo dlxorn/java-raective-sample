@@ -1,13 +1,33 @@
 package study.ms.reactive.dto;
 
-public class SampleDTO {
-  private String id ;
+import org.bson.types.ObjectId;
 
-  public String getId() {
+public class SampleDTO {
+  private ObjectId id ;
+
+  private String firstname, lastname;
+
+  public ObjectId getId() {
     return id;
   }
 
-  public void setId(String id) {
+  public void setId(ObjectId id) {
     this.id = id;
+  }
+
+  public String getFirstname() {
+    return firstname;
+  }
+
+  public void setFirstname(String firstname) {
+    this.firstname = firstname;
+  }
+
+  public String getLastname() {
+    return lastname;
+  }
+
+  public void setLastname(String lastname) {
+    this.lastname = lastname;
   }
 }
