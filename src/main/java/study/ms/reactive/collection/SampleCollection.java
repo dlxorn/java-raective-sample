@@ -2,6 +2,7 @@ package study.ms.reactive.collection;
 
 
 import org.bson.types.ObjectId;
+import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 
@@ -13,6 +14,7 @@ public class SampleCollection {
   //분산해서 저장하는 것을 목표로 하기 때문에
   // ObjectId를 생성해서 처리하게끔 한다
   // ObjectId는 중복될 확률이 매우 낮다.
+  @Id
   private ObjectId id;
 
   private String firstname, lastname;

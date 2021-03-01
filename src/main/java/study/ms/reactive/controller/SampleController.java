@@ -4,6 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,7 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import study.ms.reactive.collection.SampleCollection;
+import study.ms.reactive.collection.SampleWebClientCollection;
 import study.ms.reactive.dto.SampleDTO;
+import study.ms.reactive.dto.SampleWebclientDTO;
 import study.ms.reactive.service.SampleService;
 
 @RestController
@@ -71,6 +74,17 @@ public class SampleController {
 
 
 
+  //JSON 형식으로 보낸 것도 리퀘스트 바디를 통해 잘 받는다.
+  @GetMapping(value="/webclient-return/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+  public Mono<SampleWebclientDTO> getDataByWebClient(@PathVariable("id") String id) {
+    return sampleService.getDataByWebClient(id);
+  }
+
+
+  @PostMapping(value="/webclient-return/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+  public Mono<SampleWebClientCollection> postDataByWebClient(@PathVariable("id") String id) {
+    return sampleService.postDataByWebClient(id);
+  }
 
 
 }
