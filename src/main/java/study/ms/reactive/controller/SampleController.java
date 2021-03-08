@@ -1,5 +1,6 @@
 package study.ms.reactive.controller;
 
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -10,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ServerWebExchange;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import study.ms.reactive.collection.SampleCollection;
 import study.ms.reactive.collection.SampleWebClientCollection;
@@ -86,7 +88,15 @@ public class SampleController {
     return sampleService.postDataByWebClient(id);
   }
 
+  @GetMapping(value="/do-error")
+  public Mono<String> doError() {
+    return sampleService.doError();
+  }
 
-
+  //flux 시작 flux로 시작했는데, 리스트로 넘기려면 리스트가 담긴 모노로 바꾸어줘야 해서 이렇게 됐다.
+  @GetMapping(value="/flux")
+  public Mono<List<String>> getFluxSample() {
+    return sampleService.getFluxSample();
+  }
 
 }

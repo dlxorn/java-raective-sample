@@ -11,16 +11,16 @@ import reactor.core.publisher.Mono;
 public class CommonExceptionHandler {
 
   //일반 스프링에서는 throw를 try-catch로 잡아서 처리하는 방법이 있는데
-  //리액티브에서는 그렇게 불가능할 듯 싶다.
-  //실행시점이 다르니,
-  //이것처럼 함수형태에서는 에러를 잡아서 처리하는 게 불가능한가?
+  //리액티브에서는 모노로 만들어진 것들은, 모노가 실행되는 시점이 아니면,
+  //실행이 안되기 때문에 모노 로직을 try-catch로 처리하는 방식은 안될 것 같다.
 
-  //아래처럼 핸들러로 잡는 방식은 리액티브에서는 적합하지 않을 듯 싶다.
-  //에러 핸들링 방법부터 찾아야겠다.
+  //그러나 어쨌든 에러가 나는 것은 이 핸들러 처리를 통해 잡을 수 가 있다 (어떻게?)
+  //공통된 에러를 통하여 에러를 잡는 방식은 이전과 같은 방법으로 하면 될 것 같다.
+
   @ResponseStatus(value = HttpStatus.INTERNAL_SERVER_ERROR)
   @ExceptionHandler(value = Exception.class)
   public Mono<String> errorHandler(ServerWebExchange exchange, Exception e) {
-    return Mono.just(e.toString());
+    return Mono.just("에러!");
   }
 
 }
