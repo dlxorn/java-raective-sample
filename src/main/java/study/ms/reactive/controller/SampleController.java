@@ -93,10 +93,18 @@ public class SampleController {
     return sampleService.doError();
   }
 
+  //컨텍스트 테스트
+  @GetMapping(value="/context")
+  public Mono<String> useContext(){
+   // return sampleService.useContext();
+    return Mono.just("value");
+  }
+
   //flux 시작 flux로 시작했는데, 리스트로 넘기려면 리스트가 담긴 모노로 바꾸어줘야 해서 이렇게 됐다.
   @GetMapping(value="/flux")
   public Mono<List<String>> getFluxSample() {
     return sampleService.getFluxSample();
   }
+
 
 }

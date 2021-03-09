@@ -93,11 +93,29 @@ public class SampleService {
         .doOnNext(o->System.out.println("do on next 실행 시점 " +o))
         .doOnComplete(()->System.out.println("완료되었다 " ))
         .collectList();
+
     System.out.println("collect-list를 사용해서 mono를 변환해도 나중 시점에 실행된다");
     return listMono;
   }
 
+  //contextrite는 사용법의 확인이 필요하다
+//  public Mono<String> useContext() {
+//    Mono.just("A").contextWrite(context -> context.put("test-key",context))
+//        .map(o-> "b");
+//    Mono.deferContextual(contextView-> {
+//      String
+//    });
+//
+//    return
+//  }
 
+
+
+  //주의
+  //map을 사용하면 새로운 Mono나 Flux 객체가 생성된다.
+  // Flux<String> flux = Flux.just("A")
+  // flux.map(i -> "foo" + i)
+  // flux.subscribe(System.out::println)  -> 이렇게 하면 map의 결과가 나오질 않는다.
 
 
 }
