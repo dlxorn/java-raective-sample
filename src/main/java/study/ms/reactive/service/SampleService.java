@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 import study.ms.reactive.collection.SampleCollection;
 import study.ms.reactive.collection.SampleWebClientCollection;
 import study.ms.reactive.dto.SampleDTO;
@@ -18,14 +19,16 @@ public class SampleService {
   private final SampleRepository sampleRepository;
   private final SampleWebClientRepository sampleWebClientRepository;
   private final WebClient webClient;
+  private final CaseService caseService;
 
   //테스트 용도로 쓰는 url
   //https://jsonplaceholder.typicode.com/todos/2
   public SampleService(SampleRepository sampleRepository, WebClient.Builder webClientBuilder,
-      SampleWebClientRepository sampleWebClientRepository) {
+      SampleWebClientRepository sampleWebClientRepository, CaseService caseService) {
     this.sampleRepository = sampleRepository;
-    this.webClient = webClientBuilder.baseUrl("https://1jsonplaceholder.typicode.com").build();
+    this.webClient = webClientBuilder.baseUrl("https://jsonplaceholder.typicode.com").build();
     this.sampleWebClientRepository = sampleWebClientRepository;
+    this.caseService = caseService;
   }
 
 
@@ -73,6 +76,25 @@ public class SampleService {
         );
   }
 
+  //TODO 확인 필요
+  //defer로 위처럼 webcleint로 이어지는 것이 아니라 를 엮어서 쓰는 것도 가능하다
+  //위에랑 같은 방식으로 작동할 거라고 생각되지만, 확인이 필요할듯 하다.
+  public Mono<SampleWebClientCollection> useDefer(){
+    return Mono.defer(()->webClient.get().uri("/todos/{id}", 1)
+        .retrieve().bodyToMono(SampleWebclientDTO.class))
+        .flatMap(o -> {
+      System.out.println("진행 여부 확인");
+      SampleWebClientCollection sampleWebClientCollection = new SampleWebClientCollection();
+      sampleWebClientCollection.setCompleted(o.getCompleted());
+      sampleWebClientCollection.setId(o.getId());
+      sampleWebClientCollection.setTitle(o.getTitle());
+      sampleWebClientCollection.setUserId(o.getUserId());
+      return sampleWebClientRepository.save(sampleWebClientCollection);
+    });
+  }
+
+
+
   //내부에서 발생한 에러를 exception-handler에서 잡을 수 있다.
   public Mono<String> doError() {
    return  Mono.just("hahaha")
@@ -85,9 +107,6 @@ public class SampleService {
        });
   }
 
-   //collectList를 써서 변환을 해도, 변환이 되는 거니까, 작업이 현 시점에서 실행되지 않을까 걱정되었는데
-   //아니었다. 아마도 일반적인 리스트가 아닐 것 같다.
-  //collectlist를 써도 실행 시점은 나중이다.
   public Mono<List<String>> getFluxSample() {
     Mono<List<String>> listMono = Flux.just("a", "b", "c", "d", "e")
         .doOnNext(o->System.out.println("do on next 실행 시점 " +o))
@@ -97,6 +116,24 @@ public class SampleService {
     System.out.println("collect-list를 사용해서 mono를 변환해도 나중 시점에 실행된다");
     return listMono;
   }
+
+
+  public Flux<String> 실패일_수_있는_작업_처리 (){
+//    Flux.just("user-1")
+//        .flatMap(user ->
+//            caseService.recommendedBooks(user)
+//            .retryWhen(r)
+
+        return null;
+  }
+
+
+
+
+
+
+
+
 
   //contextrite는 사용법의 확인이 필요하다
 //  public Mono<String> useContext() {
