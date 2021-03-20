@@ -112,7 +112,55 @@ class ReactiveApplicationTests {
 				.blockLast();
 	}
 
+	@Test
+	public void 실패일_수_있는_작업_처리Sample() throws InterruptedException{
+		Disposable disposable = sampleService.실패일_수_있는_작업_처리()
+				.subscribe(
+						b -> System.out.println("onnext " + b),  //성공시 처리
+						e -> System.out.println("onerror" + e),  //실패시 처리 로그 작업>
+						() -> System.out.println("onComplete")   //작업이 완료시 처리
+				);
 
+		while (!disposable.isDisposed()) {
+			Thread.sleep(1000);
+		}
+	}
+
+	@Test
+	public void connectableFluxTest() throws InterruptedException{
+		sampleService.connectableFluxSample().connect();
+	}
+
+	@Test
+	public void cashTest() throws InterruptedException {
+		Flux<Integer> integerFlux = sampleService.cashSample();
+		integerFlux.subscribe(e->System.out.println("onnext 1번 " +e));
+		integerFlux.subscribe(e->System.out.println("onnext 2번 " +e));
+
+		Thread.sleep(1200);
+
+		integerFlux.subscribe(e->System.out.println("onnext 3번 " +e));
+	}
+
+
+	@Test
+	public void shareTest() throws InterruptedException {
+		Flux<Integer> integerFlux = sampleService.shareSample();
+		integerFlux.subscribe(e->System.out.println("onnext 1번 " +e));
+		Thread.sleep(2000);
+
+		Disposable disposable = integerFlux.subscribe(e -> System.out.println("onnext 2번 " + e));
+			while (!disposable.isDisposed()) {
+				Thread.sleep(1200);
+			}
+	}
+
+	@Test
+	public void transFormTest() throws InterruptedException {
+		Flux<String> stringFlux =  sampleService.TransFormSample();
+		stringFlux.subscribe();
+		stringFlux.subscribe();
+	}
 
 
 

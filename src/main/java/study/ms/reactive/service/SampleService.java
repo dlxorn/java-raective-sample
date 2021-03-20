@@ -1,10 +1,14 @@
 package study.ms.reactive.service;
 
+import java.time.Duration;
 import java.util.List;
+import java.util.function.Function;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.ConnectableFlux;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.function.Tuple2;
 import reactor.util.retry.Retry;
 import study.ms.reactive.collection.SampleCollection;
 import study.ms.reactive.collection.SampleWebClientCollection;
@@ -61,8 +65,8 @@ public class SampleService {
         //Exception handler에서 오류가 터지지 않도록 하기 위해
         //on ErrorResume를 쓰면, 에러난 값을 바꿀 순 있다.
         //그 결과가 아래처럼 쭉 내려간다.
-     //   .onErrorResume((o)-> Mono.just(new SampleWebclientDTO()))
-        .doOnNext((o) ->   System.out.println("next!"))
+        //   .onErrorResume((o)-> Mono.just(new SampleWebclientDTO()))
+        .doOnNext((o) -> System.out.println("next!"))
         .doOnSuccess((o) -> System.out.println("success!!"))
         .flatMap(o -> {
               System.out.println("진행 여부 확인");
@@ -79,38 +83,37 @@ public class SampleService {
   //TODO 확인 필요
   //defer로 위처럼 webcleint로 이어지는 것이 아니라 를 엮어서 쓰는 것도 가능하다
   //위에랑 같은 방식으로 작동할 거라고 생각되지만, 확인이 필요할듯 하다.
-  public Mono<SampleWebClientCollection> useDefer(){
-    return Mono.defer(()->webClient.get().uri("/todos/{id}", 1)
+  public Mono<SampleWebClientCollection> useDefer() {
+    return Mono.defer(() -> webClient.get().uri("/todos/{id}", 1)
         .retrieve().bodyToMono(SampleWebclientDTO.class))
         .flatMap(o -> {
-      System.out.println("진행 여부 확인");
-      SampleWebClientCollection sampleWebClientCollection = new SampleWebClientCollection();
-      sampleWebClientCollection.setCompleted(o.getCompleted());
-      sampleWebClientCollection.setId(o.getId());
-      sampleWebClientCollection.setTitle(o.getTitle());
-      sampleWebClientCollection.setUserId(o.getUserId());
-      return sampleWebClientRepository.save(sampleWebClientCollection);
-    });
+          System.out.println("진행 여부 확인");
+          SampleWebClientCollection sampleWebClientCollection = new SampleWebClientCollection();
+          sampleWebClientCollection.setCompleted(o.getCompleted());
+          sampleWebClientCollection.setId(o.getId());
+          sampleWebClientCollection.setTitle(o.getTitle());
+          sampleWebClientCollection.setUserId(o.getUserId());
+          return sampleWebClientRepository.save(sampleWebClientCollection);
+        });
   }
-
 
 
   //내부에서 발생한 에러를 exception-handler에서 잡을 수 있다.
   public Mono<String> doError() {
-   return  Mono.just("hahaha")
-        .flatMap(o->{
+    return Mono.just("hahaha")
+        .flatMap(o -> {
           throw new RuntimeException("강제 에러 처리");
         })
-       .doOnError(o->System.out.println("do on error : " + o.toString()))
-       .flatMap(o->{
+        .doOnError(o -> System.out.println("do on error : " + o.toString()))
+        .flatMap(o -> {
           return Mono.just("haha");
-       });
+        });
   }
 
   public Mono<List<String>> getFluxSample() {
     Mono<List<String>> listMono = Flux.just("a", "b", "c", "d", "e")
-        .doOnNext(o->System.out.println("do on next 실행 시점 " +o))
-        .doOnComplete(()->System.out.println("완료되었다 " ))
+        .doOnNext(o -> System.out.println("do on next 실행 시점 " + o))
+        .doOnComplete(() -> System.out.println("완료되었다 "))
         .collectList();
 
     System.out.println("collect-list를 사용해서 mono를 변환해도 나중 시점에 실행된다");
@@ -118,22 +121,82 @@ public class SampleService {
   }
 
 
-  public Flux<String> 실패일_수_있는_작업_처리 (){
-//    Flux.just("user-1")
-//        .flatMap(user ->
-//            caseService.recommendedBooks(user)
-//            .retryWhen(r)
+  public Flux<String> 실패일_수_있는_작업_처리() {
 
-        return null;
+    return Flux.just("user")
+        .flatMap(user ->
+            caseService.recommendedBooks(user)
+                .retryWhen(Retry.fixedDelay(3, Duration.ofMillis(10000)))
+                //실패시 리트라이 횟수
+                //실패하면 retry부터 다시 하므로, subscirbe 로그부터 다시 발생한다
+                .timeout(Duration.ofSeconds(3))         //최대 기다려 줄 있는 시간 //처리가 안되면 에러로 발행된다.
+                .onErrorResume(e -> Flux.just("The Martian")));
   }
 
 
+  //하나의 데이터를 미리 생성해두고,
+  //그 데이터를 구독 요청 때마다 생성된 데이터로 전달하여 처리하는 형태
+  public ConnectableFlux<Integer> connectableFluxSample() {
+    Flux<Integer> source = Flux.range(0, 3)
+        .doOnSubscribe(
+            o -> System.out.println("new subscription for the cold publisher ")); //TODO 이게 왜 cold지?
 
+    ConnectableFlux<Integer> conn = source.publish();
 
+    conn.subscribe(o -> System.out.println("subscriber 1 " + o));
+    conn.subscribe(o -> System.out.println("subscriber 2 " + o));
+    return conn;
+  }
 
+  //ConnectableFlux 처럼 하나의 데이터를 받아서 지속적으로 구독받을 수 있는데
+  //한가지 더 장점은 지속 시간을 두어 해당 데이터를 캐시하는 순간을
+  //정해둘 수 있다는 것이다.캐시  대기 시간 이후에 발생하는 요청은
+  //다시 데이터를 만들어두어 캐싱한다
+  public Flux<Integer> cashSample() {
+    Flux<Integer> source = Flux.range(0, 2)
+        .doOnSubscribe(s -> System.out.println(s));
 
+    return source.cache(Duration.ofSeconds(1));
+  }
 
+  //첫번째 구독 이후부터 발생한 데이터를
+  //다음 구독자들도 순차적으로 받게끔 할 때(이미 지나간 시퀀스는 무시)
+  public Flux<Integer> shareSample() {
+    Flux<Integer> source = Flux.range(0, 5)
+        .delayElements(Duration.ofMillis(1000))   //delay를 가지고 생성
+        .doOnSubscribe(s -> System.out.println("new subscription for the cold publisher"));
+    return source.share();
+  }
 
+  //TransForm 사용 Flux를 flux로 리턴하는 함수를 중간에 끼어넣어 그 함수가 처리할 수 있게 해줌
+  //TransForm을 사용할 때 주의할 것은, 실제로 이 함수는 구독 시마다
+  //아래 함수가 실행되지 않는다는 점이다
+  //그래서  System.out.println("여기 몇번 왔을까?"); 는 딱 한번 발생하게 된다
+  //실제로는
+  //  tringFlux.index()  //다음값은 tuple로 인덱스를 가져오는 값을 처리
+  //      .doOnNext(o -> System.out.println("get1 " + o.getT1() + " " + "get2 " + o.getT2()))
+  //      .map(Tuple2::getT2);
+  //요것만 전달받고 처리하는 셈이 된다.
+  //만약 구독시마다, 함수를 새로 실행하여 처리하고 싶다면??(가령 조건에 따라 flux의 상태값들을 다르게 처리할 필요가 있다던지)
+  //compose 연산자를 사용하면 된다
+  public Flux TransFormSample() {
+
+    Function<Flux<String>, Flux<String>> logUserInfo = stringFlux -> {
+      System.out.println("여기 몇번 왔을까?");
+      return stringFlux.index()  //다음값은 tuple로 인덱스를 가져오는 값을 처리
+          .doOnNext(o -> System.out.println("get1 " + o.getT1() + " " + "get2 " + o.getT2()))
+          .map(Tuple2::getT2);
+    };
+
+    return Flux.range(1000, 3)
+        .map(i -> "user - " + i)
+        .transform(logUserInfo);
+  }
+
+  //elapsed
+  //이전 스트림과의 간격을 확인하고자할 때 시용한다
+  //elapsed()
+  //subscribe(e -> System.out.prinln(e.getT1(), egetT2());
 
   //contextrite는 사용법의 확인이 필요하다
 //  public Mono<String> useContext() {
@@ -146,13 +209,14 @@ public class SampleService {
 //    return
 //  }
 
-
-
   //주의
   //map을 사용하면 새로운 Mono나 Flux 객체가 생성된다.
   // Flux<String> flux = Flux.just("A")
   // flux.map(i -> "foo" + i)
   // flux.subscribe(System.out::println)  -> 이렇게 하면 map의 결과가 나오질 않는다.
+
+   //Processor 연산자란 것도 있는데
+  // 일단 이건 쓰는 것을 권장하지 않는다고 하니 넘어가자
 
 
 }

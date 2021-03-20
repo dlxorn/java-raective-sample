@@ -21,7 +21,8 @@ public class CaseService {
       }else{
         return  Flux.just("blue Mars" , "The expanse").delayElements(Duration.ofMillis(100));
       }
-    }).doOnSubscribe(s->System.out.println(s));
+    }).doOnError(e -> System.out.println("요청 실패 : " + e))
+        .doOnSubscribe(s->System.out.println("request for " +userId)); //외부 요청된 값을 확인하려고 걸어둠.
   }
 
 }
