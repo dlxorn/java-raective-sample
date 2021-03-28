@@ -3,6 +3,8 @@ package study.ms.reactive.service;
 import java.time.Duration;
 import java.util.List;
 import java.util.function.Function;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.ConnectableFlux;
@@ -19,6 +21,9 @@ import study.ms.reactive.repository.SampleWebClientRepository;
 
 @Service
 public class SampleService {
+
+  private final Logger logger = LoggerFactory.getLogger(this.getClass());
+
 
   private final SampleRepository sampleRepository;
   private final SampleWebClientRepository sampleWebClientRepository;
@@ -66,10 +71,10 @@ public class SampleService {
         //on ErrorResume를 쓰면, 에러난 값을 바꿀 순 있다.
         //그 결과가 아래처럼 쭉 내려간다.
         //   .onErrorResume((o)-> Mono.just(new SampleWebclientDTO()))
-        .doOnNext((o) -> System.out.println("next!"))
-        .doOnSuccess((o) -> System.out.println("success!!"))
+        .doOnNext((o) -> logger.debug("next!"))
+        .doOnSuccess((o) -> logger.debug("success!!"))
         .flatMap(o -> {
-              System.out.println("진행 여부 확인");
+              logger.debug("진행 여부 확인");
               SampleWebClientCollection sampleWebClientCollection = new SampleWebClientCollection();
               sampleWebClientCollection.setCompleted(o.getCompleted());
               sampleWebClientCollection.setId(o.getId());
@@ -87,7 +92,7 @@ public class SampleService {
     return Mono.defer(() -> webClient.get().uri("/todos/{id}", 1)
         .retrieve().bodyToMono(SampleWebclientDTO.class))
         .flatMap(o -> {
-          System.out.println("진행 여부 확인");
+          logger.debug("진행 여부 확인");
           SampleWebClientCollection sampleWebClientCollection = new SampleWebClientCollection();
           sampleWebClientCollection.setCompleted(o.getCompleted());
           sampleWebClientCollection.setId(o.getId());
@@ -104,7 +109,7 @@ public class SampleService {
         .flatMap(o -> {
           throw new RuntimeException("강제 에러 처리");
         })
-        .doOnError(o -> System.out.println("do on error : " + o.toString()))
+        .doOnError(o -> logger.debug("do on error : " + o.toString()))
         .flatMap(o -> {
           return Mono.just("haha");
         });
@@ -112,11 +117,11 @@ public class SampleService {
 
   public Mono<List<String>> getFluxSample() {
     Mono<List<String>> listMono = Flux.just("a", "b", "c", "d", "e")
-        .doOnNext(o -> System.out.println("do on next 실행 시점 " + o))
-        .doOnComplete(() -> System.out.println("완료되었다 "))
+        .doOnNext(o -> logger.debug("do on next 실행 시점 " + o))
+        .doOnComplete(() -> logger.debug("완료되었다 "))
         .collectList();
 
-    System.out.println("collect-list를 사용해서 mono를 변환해도 나중 시점에 실행된다");
+    logger.debug("collect-list를 사용해서 mono를 변환해도 나중 시점에 실행된다");
     return listMono;
   }
 
@@ -139,12 +144,12 @@ public class SampleService {
   public ConnectableFlux<Integer> connectableFluxSample() {
     Flux<Integer> source = Flux.range(0, 3)
         .doOnSubscribe(
-            o -> System.out.println("new subscription for the cold publisher ")); //TODO 이게 왜 cold지?
+            o -> logger.debug("new subscription for the cold publisher ")); //TODO 이게 왜 cold지?
 
     ConnectableFlux<Integer> conn = source.publish();
 
-    conn.subscribe(o -> System.out.println("subscriber 1 " + o));
-    conn.subscribe(o -> System.out.println("subscriber 2 " + o));
+    conn.subscribe(o -> logger.debug("subscriber 1 " + o));
+    conn.subscribe(o -> logger.debug("subscriber 2 " + o));
     return conn;
   }
 
@@ -154,7 +159,7 @@ public class SampleService {
   //다시 데이터를 만들어두어 캐싱한다
   public Flux<Integer> cashSample() {
     Flux<Integer> source = Flux.range(0, 2)
-        .doOnSubscribe(s -> System.out.println(s));
+        .doOnSubscribe(s -> logger.debug("integer value : {}",s));
 
     return source.cache(Duration.ofSeconds(1));
   }
@@ -164,17 +169,17 @@ public class SampleService {
   public Flux<Integer> shareSample() {
     Flux<Integer> source = Flux.range(0, 5)
         .delayElements(Duration.ofMillis(1000))   //delay를 가지고 생성
-        .doOnSubscribe(s -> System.out.println("new subscription for the cold publisher"));
+        .doOnSubscribe(s -> logger.debug("new subscription for the cold publisher"));
     return source.share();
   }
 
   //TransForm 사용 Flux를 flux로 리턴하는 함수를 중간에 끼어넣어 그 함수가 처리할 수 있게 해줌
   //TransForm을 사용할 때 주의할 것은, 실제로 이 함수는 구독 시마다
   //아래 함수가 실행되지 않는다는 점이다
-  //그래서  System.out.println("여기 몇번 왔을까?"); 는 딱 한번 발생하게 된다
+  //그래서  logger.debug("여기 몇번 왔을까?"); 는 딱 한번 발생하게 된다
   //실제로는
   //  tringFlux.index()  //다음값은 tuple로 인덱스를 가져오는 값을 처리
-  //      .doOnNext(o -> System.out.println("get1 " + o.getT1() + " " + "get2 " + o.getT2()))
+  //      .doOnNext(o -> logger.debug("get1 " + o.getT1() + " " + "get2 " + o.getT2()))
   //      .map(Tuple2::getT2);
   //요것만 전달받고 처리하는 셈이 된다.
   //만약 구독시마다, 함수를 새로 실행하여 처리하고 싶다면??(가령 조건에 따라 flux의 상태값들을 다르게 처리할 필요가 있다던지)
@@ -182,9 +187,9 @@ public class SampleService {
   public Flux TransFormSample() {
 
     Function<Flux<String>, Flux<String>> logUserInfo = stringFlux -> {
-      System.out.println("여기 몇번 왔을까?");
+      logger.debug("여기 몇번 왔을까?");
       return stringFlux.index()  //다음값은 tuple로 인덱스를 가져오는 값을 처리
-          .doOnNext(o -> System.out.println("get1 " + o.getT1() + " " + "get2 " + o.getT2()))
+          .doOnNext(o -> logger.debug("get1 " + o.getT1() + " " + "get2 " + o.getT2()))
           .map(Tuple2::getT2);
     };
 
@@ -192,6 +197,7 @@ public class SampleService {
         .map(i -> "user - " + i)
         .transform(logUserInfo);
   }
+
 
   //elapsed
   //이전 스트림과의 간격을 확인하고자할 때 시용한다
@@ -215,8 +221,18 @@ public class SampleService {
   // flux.map(i -> "foo" + i)
   // flux.subscribe(System.out::println)  -> 이렇게 하면 map의 결과가 나오질 않는다.
 
-   //Processor 연산자란 것도 있는데
+  //Processor 연산자란 것도 있는데
   // 일단 이건 쓰는 것을 권장하지 않는다고 하니 넘어가자
 
+  //then과 concatwith의 차이.
+  //then은 특정 작업의 완료를 다른 갑으로 대체할 때 사용하고(그전 값이 뭐든 상관없이)
+  //concatwith는 특정 시퀀스 작업이 끝나면 그 다음에 시퀀스 작업을 진해야할 때 사용
+  //(그 전 작업이 끝난 후 concatwith 작업도 구독)
+  //startwith 는 시작할 때 같이 시작함
 
 }
+
+
+//reactor api 위치
+//https://projectreactor.io/docs/core/release/api/
+

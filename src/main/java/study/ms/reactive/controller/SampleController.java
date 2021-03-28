@@ -1,6 +1,8 @@
 package study.ms.reactive.controller;
 
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -11,7 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ServerWebExchange;
-import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import study.ms.reactive.collection.SampleCollection;
 import study.ms.reactive.collection.SampleWebClientCollection;
@@ -22,6 +23,9 @@ import study.ms.reactive.service.SampleService;
 @RestController
 @RequestMapping("/sample")
 public class SampleController {
+
+  private final Logger logger = LoggerFactory.getLogger(this.getClass());
+
 
   @Autowired
   private SampleService sampleService;
@@ -39,29 +43,29 @@ public class SampleController {
   @GetMapping
   public Mono<SampleCollection> getSample(ServerWebExchange exchange, ServerHttpRequest request) {
     var dsada =exchange.getRequest().getQueryParams();
-    System.out.println(dsada.get("id"));
-    System.out.println(request.getQueryParams().get("id"));
+    logger.debug("value : {}",dsada.get("id"));
+    logger.debug("value : {}",request.getQueryParams().get("id"));
     return sampleService.getSample();
   }
 
   //DTO를 선언해서 가져올 수도 있
   @GetMapping("/dto")
   public Mono<String> getSampleWithDTO(SampleDTO sampleDTO) {
-    System.out.println(sampleDTO.getId());
+    logger.debug("value : {}",sampleDTO.getId());
     return Mono.just("end");
   }
 
   //DTO를 Mono로 감싸서  가져올 수도 있음 그러나 성능 차이는 없는 것 같다.
   @GetMapping("/monoDTO")
   public Mono<String> getSampleWithMonoDTO(Mono<SampleDTO> sampleDTOMono) {
-    System.out.println(sampleDTOMono.block().getId());
+    logger.debug("value : {}",sampleDTOMono.block().getId());
     return Mono.just("end");
   }
 
   //JSON 형식으로 보낸 것도 리퀘스트 바디를 통해 잘 받는다.
   @PostMapping(value="/monoDTO",consumes = MediaType.APPLICATION_JSON_VALUE)
   public Mono<SampleCollection> postSampleWithMonoDTO(@RequestBody  SampleDTO sampleDTOMono) {
-    System.out.println(sampleDTOMono.getId());
+    logger.debug("value : {}",sampleDTOMono.getId());
     return sampleService.postSampleWithMonoDTO(sampleDTOMono);
   }
 
