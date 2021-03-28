@@ -8,6 +8,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.core.ReactiveAdapter;
+import org.springframework.core.io.DefaultResourceLoader;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -172,8 +177,16 @@ class ReactiveApplicationTests {
     stringFlux.subscribe();
   }
 
-  //그러면 지금까지 구독자 없이 실행된 것을
+
+  //그러면 지금까지 구독자 없이 subscribe()가 실행된 것은
   //내부에서 구독자를 알아서 만들어주기 때문
+  //아래와 같이, 구독자를 직접 넣어 줄수도 있다.
+  //여기서 onNext 상황일 때,
+  //subscription의 request를 통해 직접 요청해야 하는데
+  //구독자가 자기가 직접 구독 여부 시점을 결정하게 해서
+  //자기가 구독할 상황이 될 상황을 판단하여 구독을 시작하게 하기 위함이다.
+  //아래 글을 볼 것
+  //링크 글 참고 : https://engineering.linecorp.com/ko/blog/reactive-streams-with-armeria-1/
   @Test
   public void subscriber() {
 
@@ -221,6 +234,9 @@ class ReactiveApplicationTests {
   //쓰레드를 별로도 할당하여 작업을 주는 것 가능할 듯 하다.
   //(예를 들어 블럭킹 디비는 커넥션 풀에 제한이 있으니까
   // 커넥션 풀만큼의 쓰레드를 할당하여 작업하게 한다던지..)
+  //그런데 publish on은 하나의 쓰레드에서
+  //다른 쓰레드로 데이터를 넘겨주기 위해
+  //내부적으로 큐를 쓴다고 한다. (큐를 쓰는 만큼 자원을 사용할 수 있다)
   @Test
   public void schedulerPublishOnTest() {
 
@@ -282,17 +298,22 @@ class ReactiveApplicationTests {
   //contextwrite -> 값을 셋팅함
   //기존에는 subscriberconext를 이용하여, 값을
   //하나의 영역 내에서 put, get을 할 수 있었는데
-  //저 기능은 deprecated 되었다.(왜?)
+  //저 기능은 deprecated 되었다.
+  //지금은 각각 다른 영역에서 값을 put 하거나 get 하도록 해둔 거 같다 (왜?)
+  //TODO  subscriberContext()는
+  //put을 쓸때마다, context 객체를 새로 만들었다고 한다
+  //(멀티 쓰레딩에서 위험한 공유를 막고자)
+  //그런데 deferContextual 와  contextWrite도 마찬가지일까?
   @Test
-  public void contextWriteText(){
+  public void contextWriteText() {
     //deprecated된 기능
     //Mono.subscriberContext();
 
     String key = "message";
     Mono<String> r = Mono.just("Hello")
-        .flatMap(s -> Mono.deferContextual(ctx ->{
-          return  Mono.just(s + " " + ctx.get(key));
-  }))
+        .flatMap(s -> Mono.deferContextual(ctx -> {
+          return Mono.just(s + " " + ctx.get(key));
+        }))
         .contextWrite(ctx -> ctx.put(key, "World"));
 
     //테스트 결과로 사용하는 것
@@ -302,6 +323,18 @@ class ReactiveApplicationTests {
   }
 
 
+
+   @Test
+   public void DataBufferUtilsTest() {
+
+     //파일이 없어, 작동하지는 않음. 이런식으로 파일을 읽는 것도
+     //flux 형태로 바꿀 수 있음
+     Flux<DataBuffer> reactiveHamlet = DataBufferUtils.read(
+         new DefaultResourceLoader().getResource("halmet.txt"),
+         new DefaultDataBufferFactory(),
+         1024
+     );
+   }
 
 
 
