@@ -316,6 +316,7 @@ class ReactiveApplicationTests {
         }))
         .contextWrite(ctx -> ctx.put(key, "World"));
 
+
     //테스트 결과로 사용하는 것
     StepVerifier.create(r)
         .expectNext("Hello World")
