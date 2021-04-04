@@ -199,6 +199,14 @@ public class SampleService {
   }
 
 
+//  public Flux fluxMergeSequential() {
+//    //두개의 스트림을 동시에 구독하지만,
+//    //첫번째 스트림이 끝나야 두번째 스트림의 구독을 시작함
+//    Flux.mergeSequential()
+//    return null;
+//  }
+
+
   //elapsed
   //이전 스트림과의 간격을 확인하고자할 때 시용한다
   //elapsed()
@@ -235,4 +243,9 @@ public class SampleService {
 
 //reactor api 위치
 //https://projectreactor.io/docs/core/release/api/
+//기타
+//https://projectreactor.io/docs/core/release/api/reactor/core/publisher/ReplayProcessor.html
+
+
+//책 291쪽에 new parameterizedTypeReference<>() 가 뭔지 테스트해보고 확인할 것
 
