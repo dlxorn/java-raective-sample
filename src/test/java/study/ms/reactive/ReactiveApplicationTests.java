@@ -1,7 +1,6 @@
 package study.ms.reactive;
 
 
-
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
@@ -244,17 +243,17 @@ class ReactiveApplicationTests {
 
     Scheduler scheduler = Schedulers.boundedElastic();
 
-    Flux.range(0,100)
+    Flux.range(0, 100)
         .map(String::valueOf)
-        .filter(s->s.length()>1)
-        .map(o->{
-          logger.debug("a값"  + o);
-          return o+"a";
+        .filter(s -> s.length() > 1)
+        .map(o -> {
+          logger.debug("a값" + o);
+          return o + "a";
         })
         .publishOn(scheduler)
-        .map(o->{
-          logger.debug("b값"  + o);
-        return  o+"b";
+        .map(o -> {
+          logger.debug("b값" + o);
+          return o + "b";
         })
         .subscribe();
   }
@@ -268,23 +267,24 @@ class ReactiveApplicationTests {
   @Test
   public void schedulerSubscribeOn() {
     Scheduler elasticScheduler = Schedulers.boundedElastic(); ///쓰레드 범위가 가용으로 결정되는 스케쥴러라는 것 같다
-    Scheduler immediateScheduler = Schedulers.immediate();       //현재의 쓰레드를 사용하고자할 때 사용(Test 코드에서는 Test Worker 쓰레드)
+    Scheduler immediateScheduler = Schedulers
+        .immediate();       //현재의 쓰레드를 사용하고자할 때 사용(Test 코드에서는 Test Worker 쓰레드)
 
     logger.debug("여기 쓰레드는 어디냐?");
 
-    Mono<String> mono =Mono.fromCallable(()-> {
+    Mono<String> mono = Mono.fromCallable(() -> {
       String a = "a";
-      logger.debug("subscribeOn 스케쥴러 스레드 1" +a);
+      logger.debug("subscribeOn 스케쥴러 스레드 1" + a);
       return a;
     }).subscribeOn(elasticScheduler)
-     .map((o)->{
-       logger.debug("subscribeOn 스케쥴러 스레드 2"  +o);
-       return o;
-     });
+        .map((o) -> {
+          logger.debug("subscribeOn 스케쥴러 스레드 2" + o);
+          return o;
+        });
 
-    Mono.defer(()->mono)
-        .map((o)->{
-           logger.debug("싱글 스케쥴러 스레드 " + o);
+    Mono.defer(() -> mono)
+        .map((o) -> {
+          logger.debug("싱글 스케쥴러 스레드 " + o);
           return o;
         })
         .publishOn(immediateScheduler)
@@ -316,7 +316,6 @@ class ReactiveApplicationTests {
         }))
         .contextWrite(ctx -> ctx.put(key, "World"));
 
-
     //테스트 결과로 사용하는 것
     StepVerifier.create(r)
         .expectNext("Hello World")
@@ -324,21 +323,17 @@ class ReactiveApplicationTests {
   }
 
 
+  @Test
+  public void DataBufferUtilsTest() {
 
-   @Test
-   public void DataBufferUtilsTest() {
-
-     //파일이 없어, 작동하지는 않음. 이런식으로 파일을 읽는 것도
-     //flux 형태로 바꿀 수 있음
-     Flux<DataBuffer> reactiveHamlet = DataBufferUtils.read(
-         new DefaultResourceLoader().getResource("halmet.txt"),
-         new DefaultDataBufferFactory(),
-         1024
-     );
-   }
-
-
-
+    //파일이 없어, 작동하지는 않음. 이런식으로 파일을 읽는 것도
+    //flux 형태로 바꿀 수 있음
+    Flux<DataBuffer> reactiveHamlet = DataBufferUtils.read(
+        new DefaultResourceLoader().getResource("halmet.txt"),
+        new DefaultDataBufferFactory(),
+        1024
+    );
+  }
 
 
 }
