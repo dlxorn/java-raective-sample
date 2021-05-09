@@ -2,6 +2,7 @@ package study.ms.reactive.service;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +60,17 @@ public class SampleService {
 
   public Mono<SampleWebclientDTO> getDataByWebClient(String id) {
     return webClient.get().uri("/todos/{id}", id).retrieve().bodyToMono(SampleWebclientDTO.class)
+        .log();
+  }
+
+
+  //webclient 요청에 대하여 repteat를 넣어서 지속적으로 요청을 하는 형태로 사용할 수 있다.
+  //repeatwhen을 사용하여, repeat시에 조건을 여러가지로 넣는 것이 가능하다.
+  //딜레이를 넣어서 처리하는 것도 가능하고, 혹은,타이머를 정해서 작업을 진행시키는 것도 가능할 듯.
+  public Flux<SampleWebclientDTO> getStreamDataByWebClient(String id) {
+    return webClient.get().uri("/todos/{id}", id).retrieve().bodyToMono(SampleWebclientDTO.class)
+        .repeatWhen(completed -> completed.delaySequence(Duration.ofSeconds(1L)))
+        .timeout(Duration.ofSeconds(10))
         .log();
   }
 
@@ -159,7 +171,7 @@ public class SampleService {
   //다시 데이터를 만들어두어 캐싱한다
   public Flux<Integer> cashSample() {
     Flux<Integer> source = Flux.range(0, 2)
-        .doOnSubscribe(s -> logger.debug("integer value : {}",s));
+        .doOnSubscribe(s -> logger.debug("integer value : {}", s));
 
     return source.cache(Duration.ofSeconds(1));
   }
@@ -198,14 +210,12 @@ public class SampleService {
         .transform(logUserInfo);
   }
 
-
 //  public Flux fluxMergeSequential() {
 //    //두개의 스트림을 동시에 구독하지만,
 //    //첫번째 스트림이 끝나야 두번째 스트림의 구독을 시작함
 //    Flux.mergeSequential()
 //    return null;
 //  }
-
 
   //elapsed
   //이전 스트림과의 간격을 확인하고자할 때 시용한다
@@ -240,12 +250,10 @@ public class SampleService {
 
 }
 
-
 //reactor api 위치
 //https://projectreactor.io/docs/core/release/api/
 //기타
 //https://projectreactor.io/docs/core/release/api/reactor/core/publisher/ReplayProcessor.html
-
 
 //책 291쪽에 new parameterizedTypeReference<>() 가 뭔지 테스트해보고 확인할 것
 

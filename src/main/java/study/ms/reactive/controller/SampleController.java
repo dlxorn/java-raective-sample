@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -112,6 +113,13 @@ public class SampleController {
   @GetMapping(value="/flux")
   public Mono<List<String>> getFluxSample() {
     return sampleService.getFluxSample();
+  }
+
+
+ //service 객체의 repeat를 줘서 request 요청을 연속적으로 하고, 그 결과를 클라이언트 측에서 스트리밍 형태로 받을 수 있다.
+  @GetMapping(value="/stream" ,produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  public Flux<SampleWebclientDTO> repeatStream(){
+    return  sampleService.getStreamDataByWebClient("1");
   }
 
 }
