@@ -2,7 +2,9 @@ package study.ms.reactive.service;
 
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.PostConstruct;
@@ -15,6 +17,7 @@ import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
+import software.amazon.awssdk.services.sqs.model.DeleteMessageResponse;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
@@ -65,17 +68,18 @@ public class AwsSqsStreamSampleService {
         .flatMap(o -> Mono.deferContextual(contextView -> {
           Map<Object, Object> map = contextView.get("ContextMap");
           String queueUrl = (String) map.get("queueUrl");
+
+          List<CompletableFuture> list=  new ArrayList<>();
           o.messages().stream().forEach((c) -> {
             DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder()
                 .queueUrl(queueUrl)
                 .receiptHandle(c.receiptHandle())
                 .build();
-
-            //TODO 각 메세지 삭제 작업도 webflux 안에서 작업하게 해야할 것 같다.
-            sqsAsyncClient.deleteMessage(deleteMessageRequest);
+            list.add(sqsAsyncClient
+                .deleteMessage(deleteMessageRequest));
           });
-          return Mono.just(o);
-        }))
+          return Mono.just(list);
+        })).flatMap((o)-> Mono.just(o).flatMapMany(Flux::fromIterable) )
         .contextWrite(ctx -> ctx.put("ContextMap", new HashMap<String, Object>()))
         .subscribeOn(Schedulers.single()).
         subscribe();
