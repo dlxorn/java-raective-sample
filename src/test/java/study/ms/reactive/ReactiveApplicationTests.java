@@ -309,6 +309,8 @@ class ReactiveApplicationTests {
     //deprecated된 기능
     //Mono.subscriberContext();
 
+    //transformDeferredContextual
+
     String key = "message";
     Mono<String> r = Mono.just("Hello")
         .flatMap(s -> Mono.deferContextual(ctx -> {
@@ -334,6 +336,18 @@ class ReactiveApplicationTests {
         1024
     );
   }
+
+  @Test
+  public void deferContextualTest() {
+    String key = "message";
+    Mono<String> r = Mono.just("Hello").flatMap(s -> Mono.deferContextual(contextView -> {
+      return Mono.just(s + " " + contextView.get(key));
+    })).contextWrite(context -> {
+      return context.put(key, "World");
+    });
+    StepVerifier.create(r).expectNext("Hello World").verifyComplete();
+  }
+
 
 
 }

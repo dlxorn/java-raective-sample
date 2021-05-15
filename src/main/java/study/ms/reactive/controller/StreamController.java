@@ -20,6 +20,7 @@ public class StreamController {
   public StreamController() {
                        //TODO 메서드의 의미가 무엇인지 확인할 것
     this.sink =  Sinks.many().multicast().onBackpressureBuffer();
+
   }
 
 

@@ -11,7 +11,6 @@ import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
 import software.amazon.awssdk.services.sqs.model.CreateQueueResponse;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
-import software.amazon.awssdk.services.sqs.model.GetQueueUrlResponse;
 import software.amazon.awssdk.services.sqs.model.Message;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
@@ -26,6 +25,7 @@ public class AwsSqsSampleService {
   SqsAsyncClient sqsAsyncClient;
 
 
+  //webflux 구조 아님.
   public void sendSamplesMessage(SqsClient sqsClient, String queueName, String message) {
 
     try {
