@@ -40,6 +40,35 @@ public class AwsSqsStreamSampleService {
 
   @PostConstruct
   public void postConstruct() {
+    reqeustSqsRepeat();
+  }
+
+
+  public Mono<String> asyncSendSampleMessageReturnMono(
+      String message) {
+
+    GetQueueUrlRequest getQueueRequest = GetQueueUrlRequest.builder()
+        .queueName(QueueName)
+        .build();
+
+    return Mono.fromFuture(sqsAsyncClient.getQueueUrl(getQueueRequest)).flatMap(
+        (o) -> {
+          SendMessageRequest sendMsgRequest = SendMessageRequest.builder()
+              .queueUrl(o.queueUrl())
+              .messageBody(message)
+              .delaySeconds(5)
+              .build();
+
+          return Mono.fromFuture(sqsAsyncClient.sendMessage(sendMsgRequest));
+        }
+    ).then(Mono.just("SEND"));
+  }
+
+  public Flux<String> stream() {
+    return sink.asFlux().map(e -> ServerSentEvent.builder(e).build());
+  }
+
+  public void reqeustSqsRepeat(){
     Mono.fromFuture(
         sqsAsyncClient
             .getQueueUrl(GetQueueUrlRequest.builder().queueName(QueueName).build())
@@ -69,7 +98,7 @@ public class AwsSqsStreamSampleService {
           Map<Object, Object> map = contextView.get("ContextMap");
           String queueUrl = (String) map.get("queueUrl");
 
-          List<CompletableFuture> list=  new ArrayList<>();
+          List<CompletableFuture> list = new ArrayList<>();
           o.messages().stream().forEach((c) -> {
             DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder()
                 .queueUrl(queueUrl)
@@ -79,35 +108,15 @@ public class AwsSqsStreamSampleService {
                 .deleteMessage(deleteMessageRequest));
           });
           return Mono.just(list);
-        })).flatMap((o)-> Mono.just(o).flatMapMany(Flux::fromIterable) )
+        })).flatMap((o) -> Mono.just(o).flatMapMany(Flux::fromIterable))
+        //contextWrite 사용할 때에 주의점
+        //해당 값은 webflux 요청 끼리 모두 공유한다.
+        //상단해서 특정한 요소만 처리하기 위한 결과만을 처리하기 위해
+        //컨텍스트 라이트를 쓰기는 조금 어려울 것 같다.
+        //위 로직에서 사용시 문제가 없는 것은 queryUrl값이 같은 값이기 때문
         .contextWrite(ctx -> ctx.put("ContextMap", new HashMap<String, Object>()))
         .subscribeOn(Schedulers.single()).
         subscribe();
-  }
-
-
-  public Mono<String> asyncSendSampleMessageReturnMono(
-      String message) {
-
-    GetQueueUrlRequest getQueueRequest = GetQueueUrlRequest.builder()
-        .queueName(QueueName)
-        .build();
-
-    return Mono.fromFuture(sqsAsyncClient.getQueueUrl(getQueueRequest)).flatMap(
-        (o) -> {
-          SendMessageRequest sendMsgRequest = SendMessageRequest.builder()
-              .queueUrl(o.queueUrl())
-              .messageBody(message)
-              .delaySeconds(5)
-              .build();
-
-          return Mono.fromFuture(sqsAsyncClient.sendMessage(sendMsgRequest));
-        }
-    ).then(Mono.just("SEND"));
-  }
-
-  public Flux<String> stream() {
-    return sink.asFlux().map(e -> ServerSentEvent.builder(e).build());
   }
 
 

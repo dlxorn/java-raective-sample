@@ -2,7 +2,6 @@ package study.ms.reactive.service;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -151,17 +150,21 @@ public class SampleService {
   }
 
 
-  //하나의 데이터를 미리 생성해두고,
-  //그 데이터를 구독 요청 때마다 생성된 데이터로 전달하여 처리하는 형태
+  //ConnectableFlux를 connect 했을 때 그 시점부터, publish하고 subscriber가 데이터를 받을 수 있음.
   public ConnectableFlux<Integer> connectableFluxSample() {
     Flux<Integer> source = Flux.range(0, 3)
+         .doOnNext(o -> logger.debug("본체" + o))
         .doOnSubscribe(
             o -> logger.debug("new subscription for the cold publisher ")); //TODO 이게 왜 cold지?
 
     ConnectableFlux<Integer> conn = source.publish();
-
+    try {
+      logger.debug("잠시 대기");
+      Thread.sleep(1000);
+    }catch(Exception e){ logger.debug("에러!!");}
     conn.subscribe(o -> logger.debug("subscriber 1 " + o));
     conn.subscribe(o -> logger.debug("subscriber 2 " + o));
+    logger.debug("잠시 또 대기");
     return conn;
   }
 

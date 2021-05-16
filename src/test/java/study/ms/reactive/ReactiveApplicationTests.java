@@ -1,6 +1,7 @@
 package study.ms.reactive;
 
 
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Subscriber;
 import org.slf4j.Logger;
@@ -13,6 +14,7 @@ import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import reactor.core.Disposable;
+import reactor.core.publisher.ConnectableFlux;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Scheduler;
@@ -142,7 +144,8 @@ class ReactiveApplicationTests {
 
   @Test
   public void connectableFluxTest() throws InterruptedException {
-    sampleService.connectableFluxSample().connect();
+    ConnectableFlux<Integer> connectableFlux = sampleService.connectableFluxSample();
+    connectableFlux.connect();
   }
 
   @Test
@@ -348,6 +351,27 @@ class ReactiveApplicationTests {
     StepVerifier.create(r).expectNext("Hello World").verifyComplete();
   }
 
+
+  @Test
+  public void testFluxFrom() throws Exception {
+    Flux flux = Flux.just(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+
+    //flux_from은 이미 만들어진 flux에 정보로,
+    //새로운 flux 로직을 새로 생성한다.
+    //아래와 같이 두개의 flux from으로 만들면
+    //각각 1,2,3,4,5,6,7,8,9,10을 호출하게 된다.
+    Flux.from(flux)
+        .doOnNext(o -> System.out.println("첫번째 플럭스 " + o)).subscribe();
+
+    Flux.from(flux)
+        .doOnNext(o -> System.out.println("두번째 플럭스 " + o)).subscribe();
+
+    Disposable disposable = flux.subscribe();
+
+    while (!disposable.isDisposed()) {
+      Thread.sleep(1000);
+    }
+  }
 
 
 }
