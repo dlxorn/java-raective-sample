@@ -40,7 +40,10 @@ public class AwsSqsStreamSampleService {
 
   @PostConstruct
   public void postConstruct() {
-  //  reqeustSqsRepeat();
+    //TODO 리피트는 반복 작업을 할 때마다 쓰레드가 바뀌는 것 같다. (확인 필요)
+    //reqeustSqsRepeat();
+
+    reqeustSqsInterval();
   }
 
 
@@ -68,7 +71,7 @@ public class AwsSqsStreamSampleService {
     return sink.asFlux().map(e -> ServerSentEvent.builder(e).build());
   }
 
-  public void reqeustSqsRepeat(){
+  public void reqeustSqsRepeat() {
     Mono.fromFuture(
         sqsAsyncClient
             .getQueueUrl(GetQueueUrlRequest.builder().queueName(QueueName).build())
@@ -118,6 +121,62 @@ public class AwsSqsStreamSampleService {
         .subscribeOn(Schedulers.single()).
         subscribe();
   }
+
+
+  //위에랑 똑같은데 위에는 리피트를 썼고, 여기는 인터벌을 썼음.
+  public void reqeustSqsInterval() {
+
+    Flux.interval(Duration.ofSeconds(1L))
+        .flatMap((o) -> Mono.fromFuture(
+            sqsAsyncClient
+                .getQueueUrl(GetQueueUrlRequest.builder().queueName(QueueName).build())
+        )).timeout(Duration.ofSeconds(10))
+        .log()
+        .flatMap(o -> {
+      return Mono.deferContextual(contextView -> {
+        Map<String, Object> map = contextView.get("ContextMap");
+        map.put("queueUrl", o.queueUrl());
+        return Mono.just(o);
+      });
+    }).
+        flatMap((o) -> {
+          CompletableFuture<ReceiveMessageResponse> receiveMessageResponse = sqsAsyncClient
+              .receiveMessage(
+                  ReceiveMessageRequest.builder()
+                      .maxNumberOfMessages(5)
+                      .queueUrl(o.queueUrl())
+                      .waitTimeSeconds(10)
+                      .visibilityTimeout(30)
+                      .build()
+              );
+          return Mono.fromFuture(receiveMessageResponse);
+        })
+        .doOnNext(o -> o.messages().stream().forEach((c) -> sink.tryEmitNext(c.body())))
+        .flatMap(o -> Mono.deferContextual(contextView -> {
+          Map<Object, Object> map = contextView.get("ContextMap");
+          String queueUrl = (String) map.get("queueUrl");
+
+          List<CompletableFuture> list = new ArrayList<>();
+          o.messages().stream().forEach((c) -> {
+            DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder()
+                .queueUrl(queueUrl)
+                .receiptHandle(c.receiptHandle())
+                .build();
+            list.add(sqsAsyncClient
+                .deleteMessage(deleteMessageRequest));
+          });
+          return Mono.just(list);
+        })).flatMap((o) -> Mono.just(o).flatMapMany(Flux::fromIterable))
+        //contextWrite 사용할 때에 주의점
+        //해당 값은 webflux 요청 끼리 모두 공유한다.
+        //상단해서 특정한 요소만 처리하기 위한 결과만을 처리하기 위해
+        //컨텍스트 라이트를 쓰기는 조금 어려울 것 같다.
+        //위 로직에서 사용시 문제가 없는 것은 queryUrl값이 같은 값이기 때문
+        .contextWrite(ctx -> ctx.put("ContextMap", new HashMap<String, Object>()))
+        .subscribeOn(Schedulers.single()).
+        subscribe();
+  }
+
 
 
 }

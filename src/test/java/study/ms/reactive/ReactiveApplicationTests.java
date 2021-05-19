@@ -419,5 +419,18 @@ class ReactiveApplicationTests {
     }
   }
 
-
+  //TODO repeat도 위에서 적용하나, 아래에서 적용하나 차이가 없는 것 같다.( 확실치 않다)
+  @Test
+  public void fluxRepeatTest (){
+    Flux.range(1, 3)
+        .map(i -> {
+          logger.info("map {} to {}", i, i + 2);
+          return i + 2;
+        })
+        .flatMap(i -> {
+          logger.info("flatMap {} to Flux.range({}, {})", i, 1, i);
+          return Flux.range(1, i);
+        }).repeat(10)
+        .subscribe(i -> logger.info("next " + i));
+  }
 }
