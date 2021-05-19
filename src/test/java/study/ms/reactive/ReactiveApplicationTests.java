@@ -296,17 +296,24 @@ class ReactiveApplicationTests {
         .subscribe();
   }
 
-
-  //subscribeon은 아래처럼 callable 작업을 할 때(즉 외부에서 비동기 데이터를 가져올 때 라던지
-  //작업할 워커를 새로운 워커에게 할당해주고 싶을 떄 사용한다.
-  //그런데 이상한 것은 subscribeon으로 생성된 쓰레드는
-  //그 뒤로 publish on을 해도 쓰레드 대상이 바뀌지 않는다.
-  //TODO 좀 더 공부가 필요할 듯
+  //subscribeon은 이 webflux를 사용할 스케쥴러를 지정한다.
+  //지정하면 이 웹플러스를 처리할 때는 설정된 스케쥴러가 제공하는 쓰레드를 이용한다
+  //적용 시점에 쓰레드가 바뀌는 publishon에 비하여,
+  //subscribeOn은 upstream에 관여한다가 다운스트림으로 내려갈 때(publish를 만나기전까지) 작동한다
+  //그래서 아래의 작업을 시키고 로그를 테스트해보면 퍼블리쉬on을 만나기 전까지
+  //subscribe thread1 이 실행되어 있다.
+  //(아래 subscribeOn를 지우고) 새로운 subscribeOn 을 publishOn보다 아래에 넣어도 마찬가지이다.
+  //upstream 한다는 것은 webflux에 구독이 들어갈때, 만아래부터 요청이 들어가서 최대 요청이까지 올라갔다가. (upstream)
+  //요청 결과를 아래로 downstream 하기 때문
+  //upstream 할때의 변경한 쓰레드는 publishon이 만나기 전까지
+  //지속된다.
   @Test
   public void schedulerSubscribeOn() {
-    Scheduler elasticScheduler = Schedulers.boundedElastic(); ///쓰레드 범위가 가용으로 결정되는 스케쥴러라는 것 같다
-    Scheduler immediateScheduler = Schedulers
-        .immediate();       //현재의 쓰레드를 사용하고자할 때 사용(Test 코드에서는 Test Worker 쓰레드)
+     //Scheduler elasticScheduler = Schedulers.boundedElastic(); ///쓰레드 범위가 가용으로 결정되는 스케쥴러라는 것 같다
+
+    Scheduler elasticScheduler1 = Schedulers.newParallel("subscribe thread1");
+    Scheduler elasticScheduler2 = Schedulers.newParallel("subscribe thread2");
+    Scheduler newThreade = Schedulers.newParallel("publish thread");//현재의 쓰레드를 사용하고자할 때 사용(Test 코드에서는 Test Worker 쓰레드)
 
     logger.debug("여기 쓰레드는 어디냐?");
 
@@ -314,21 +321,25 @@ class ReactiveApplicationTests {
       String a = "a";
       logger.debug("subscribeOn 스케쥴러 스레드 1" + a);
       return a;
-    }).subscribeOn(elasticScheduler)
-        .map((o) -> {
+    }).map((o) -> {
           logger.debug("subscribeOn 스케쥴러 스레드 2" + o);
           return o;
-        });
+        })
+        .subscribeOn(elasticScheduler1)
+        .subscribeOn(elasticScheduler2); //
 
     Mono.defer(() -> mono)
         .map((o) -> {
           logger.debug("싱글 스케쥴러 스레드 " + o);
           return o;
         })
-        .publishOn(immediateScheduler)
+        .publishOn(newThreade)
+        .map((o) -> {
+          logger.debug("퍼블리시가 바뀐 " + o);
+          return o;
+        })
         .subscribe();
   }
-
 
   //context를 통해, 다른 영역에서 하나의 모노나 플럭스에서 설정한 값들을
   //가져오거나 처리할 수 있게 한다.
