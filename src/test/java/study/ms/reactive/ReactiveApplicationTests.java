@@ -84,7 +84,7 @@ class ReactiveApplicationTests {
     //blockfirst는 첫번째 값을 처리할 때까지  blocklast는 마지막값을 처리할 때 발생함
     sampleService.useDefer().block();
     //블로킹을 걸지 않고 작동만 시킬 때(이 경우 테스트 코드가 먼저 끝나 작동이 안될수도 있어서
-    //테스트 코드를 짤 때는 아래 while 처럼 조건을 걸어두어야 한다.
+    //테스트 코드를 짤 때는 아래 while 처럼 조건을 걸어두었다
     Disposable disposable = sampleService.useDefer().subscribe();
 
     while (!disposable.isDisposed()) {
@@ -307,6 +307,12 @@ class ReactiveApplicationTests {
   //요청 결과를 아래로 downstream 하기 때문
   //upstream 할때의 변경한 쓰레드는 publishon이 만나기 전까지
   //지속된다.
+
+  //책 203P
+  //publishon은 작업을 하기 위해 큐를 만드는 과정에서 추가적인 연산이 들어가는데
+  //subscribeon은 추가 큐를 만들지 않는다.
+  //그래서 전체 작업을 네티 워커에게 맡기고 싶지 않다면,
+  //subscribeon이 성능상 더 이점이 있을 것이다.
   @Test
   public void schedulerSubscribeOn() {
      //Scheduler elasticScheduler = Schedulers.boundedElastic(); ///쓰레드 범위가 가용으로 결정되는 스케쥴러라는 것 같다

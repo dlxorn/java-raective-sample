@@ -4,13 +4,11 @@ package study.ms.reactive.controller;
 import java.time.LocalDateTime;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
-import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.Sinks;
 import study.ms.reactive.service.AwsSqsStreamSampleService;
 
 //외부 요청에 의하여 큐를 쌓고,
@@ -24,14 +22,14 @@ public class SqsStreamController {
   AwsSqsStreamSampleService awsSqsStreamSampleService;
 
   @GetMapping("/send")
-  public Mono<String> addValue(){
+  public Mono<String> addValue() {
     String massage = "request : " + LocalDateTime.now().toString();
-    return  awsSqsStreamSampleService.asyncSendSampleMessageReturnMono(massage);
+    return awsSqsStreamSampleService.asyncSendSampleMessageReturnMono(massage);
   }
 
-  @GetMapping(value ="/receive-stream",produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-  public Flux<String> streamValue(){
-    return  awsSqsStreamSampleService.stream();
+  @GetMapping(value = "/receive-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+  public Flux<String> streamValue() {
+    return awsSqsStreamSampleService.stream();
   }
 
 
