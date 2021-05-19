@@ -40,7 +40,7 @@ public class AwsSqsStreamSampleService {
 
   @PostConstruct
   public void postConstruct() {
-    reqeustSqsRepeat();
+  //  reqeustSqsRepeat();
   }
 
 

@@ -15,6 +15,9 @@ repositories {
 dependencies {
 	//compile과 implementation의 차이가 뭐지?
 	compile 'io.projectreactor.addons:reactor-extra:3.2.0.RELEASE'
+	//blockhound reactive에서 block으로 작동하는 소스를 찾아서 예외 발생 reactor core 3.3 부터는 내장되어 있음.
+	//block(), blockFirst(), blockLast() 등을 사용하면 예외 발생.
+	//testCompile 'io.projectreactor.tools:blockhound:$LATEST_RELEASE'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb-reactive'
 	implementation 'software.amazon.awssdk:sqs:2.16.52'

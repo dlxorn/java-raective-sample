@@ -4,6 +4,7 @@ package study.ms.reactive;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Subscriber;
+import org.reactivestreams.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import reactor.core.Disposable;
+import reactor.core.publisher.BaseSubscriber;
 import reactor.core.publisher.ConnectableFlux;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -35,6 +37,14 @@ class ReactiveApplicationTests {
   @Autowired
   SampleService sampleService;
 
+  //모노 , 플럭스 변환
+  @Test
+  public void convertMonoAndFlux(){
+    Flux.just(1L,2L).collectList() ; //모노 리스트로 변환
+    Mono.just(1L).flux() ; //플럭스로 변환
+    Flux<Long> fluxFrom = Flux.from(Flux.just(1L));
+    Flux<Long> monoFrom = Flux.from(Mono.just(1L));
+  }
 
   //defer와 just의 차이
   //defer는 레이지 로딩과 비슷하여 실행 시점에 실제적인 값을 받
@@ -189,6 +199,7 @@ class ReactiveApplicationTests {
   //자기가 구독할 상황이 될 상황을 판단하여 구독을 시작하게 하기 위함이다.
   //아래 글을 볼 것
   //링크 글 참고 : https://engineering.linecorp.com/ko/blog/reactive-streams-with-armeria-1/
+  //그런데...(아래 테스트 케이스 참조)
   @Test
   public void subscriber() {
 
@@ -224,6 +235,30 @@ class ReactiveApplicationTests {
     });
 
   }
+
+  //위에처럼 구독자가 모두 커스터마이징을 하는 것은 좋지 않다고 한다.
+  //리액티브에서 기본적으 제공하는 구독자는 안정성과 기능을 향상시킨 기능들을 제공하고 있기 때문이라고 한다.
+  //그래서 위에 방법보다는 아래의 방법으로 하는 것을 권장한다고 한다.
+  @Test
+  public void  baseSubscriber() {
+
+
+    Flux<Integer> stringFlux = Flux.just(1, 2, 3, 4, 5);
+    stringFlux.subscribe(new BaseSubscriber<Integer>() {
+
+      @Override
+      public void hookOnSubscribe(Subscription subscription){
+        request(1);
+      }
+
+      @Override
+      public void hookOnNext(Integer value){
+        logger.debug("다음: {}", value);
+        request(1);
+      }
+    });
+  }
+
 
 
   //스케쥴러로 쓰레드 처리하기
