@@ -1,6 +1,7 @@
 package study.ms.reactive;
 
 
+import java.time.Duration;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 import org.reactivestreams.Subscriber;
@@ -39,9 +40,9 @@ class ReactiveApplicationTests {
 
   //모노 , 플럭스 변환
   @Test
-  public void convertMonoAndFlux(){
-    Flux.just(1L,2L).collectList() ; //모노 리스트로 변환
-    Mono.just(1L).flux() ; //플럭스로 변환
+  public void convertMonoAndFlux() {
+    Flux.just(1L, 2L).collectList(); //모노 리스트로 변환
+    Mono.just(1L).flux(); //플럭스로 변환
     Flux<Long> fluxFrom = Flux.from(Flux.just(1L));
     Flux<Long> monoFrom = Flux.from(Mono.just(1L));
   }
@@ -240,25 +241,23 @@ class ReactiveApplicationTests {
   //리액티브에서 기본적으 제공하는 구독자는 안정성과 기능을 향상시킨 기능들을 제공하고 있기 때문이라고 한다.
   //그래서 위에 방법보다는 아래의 방법으로 하는 것을 권장한다고 한다.
   @Test
-  public void  baseSubscriber() {
-
+  public void baseSubscriber() {
 
     Flux<Integer> stringFlux = Flux.just(1, 2, 3, 4, 5);
     stringFlux.subscribe(new BaseSubscriber<Integer>() {
 
       @Override
-      public void hookOnSubscribe(Subscription subscription){
+      public void hookOnSubscribe(Subscription subscription) {
         request(1);
       }
 
       @Override
-      public void hookOnNext(Integer value){
+      public void hookOnNext(Integer value) {
         logger.debug("다음: {}", value);
         request(1);
       }
     });
   }
-
 
 
   //스케쥴러로 쓰레드 처리하기
@@ -315,11 +314,12 @@ class ReactiveApplicationTests {
   //subscribeon이 성능상 더 이점이 있을 것이다.
   @Test
   public void schedulerSubscribeOn() {
-     //Scheduler elasticScheduler = Schedulers.boundedElastic(); ///쓰레드 범위가 가용으로 결정되는 스케쥴러라는 것 같다
+    //Scheduler elasticScheduler = Schedulers.boundedElastic(); ///쓰레드 범위가 가용으로 결정되는 스케쥴러라는 것 같다
 
     Scheduler elasticScheduler1 = Schedulers.newParallel("subscribe thread1");
     Scheduler elasticScheduler2 = Schedulers.newParallel("subscribe thread2");
-    Scheduler newThreade = Schedulers.newParallel("publish thread");//현재의 쓰레드를 사용하고자할 때 사용(Test 코드에서는 Test Worker 쓰레드)
+    Scheduler newThreade = Schedulers
+        .newParallel("publish thread");//현재의 쓰레드를 사용하고자할 때 사용(Test 코드에서는 Test Worker 쓰레드)
 
     logger.debug("여기 쓰레드는 어디냐?");
 
@@ -328,9 +328,9 @@ class ReactiveApplicationTests {
       logger.debug("subscribeOn 스케쥴러 스레드 1" + a);
       return a;
     }).map((o) -> {
-          logger.debug("subscribeOn 스케쥴러 스레드 2" + o);
-          return o;
-        })
+      logger.debug("subscribeOn 스케쥴러 스레드 2" + o);
+      return o;
+    })
         .subscribeOn(elasticScheduler1)
         .subscribeOn(elasticScheduler2); //
 
@@ -427,7 +427,7 @@ class ReactiveApplicationTests {
 
   //TODO repeat도 위에서 적용하나, 아래에서 적용하나 차이가 없는 것 같다.( 확실치 않다)
   @Test
-  public void fluxRepeatTest (){
+  public void fluxRepeatTest() {
     Flux.range(1, 3)
         .map(i -> {
           logger.info("map {} to {}", i, i + 2);
@@ -439,4 +439,20 @@ class ReactiveApplicationTests {
         }).repeat(10)
         .subscribe(i -> logger.info("next " + i));
   }
+
+
+  //백프레셔레셔 조절.
+  //delaySequence와, limitRate를 이용하여
+  //하단으로 압력이 몰리는 것을 막기 위해 설정
+  @Test
+  public void BackpressureTest() {
+
+    Flux.range(0, 10)
+        .delaySequence(Duration.ofMillis(100))
+        .limitRate(2)
+        .doOnNext(integer -> logger.debug("i = {}", integer))
+        .collectList()
+        .block();
+  }
+
 }

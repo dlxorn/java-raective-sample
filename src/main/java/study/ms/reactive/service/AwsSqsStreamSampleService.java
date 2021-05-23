@@ -40,9 +40,8 @@ public class AwsSqsStreamSampleService {
 
   @PostConstruct
   public void postConstruct() {
-    //TODO 리피트는 반복 작업을 할 때마다 쓰레드가 바뀌는 것 같다. (확인 필요)
+    //TODO 리피트는 반복 작업을 할 때마다 쓰레드가 안바뀌고 인터벌은 관리하는 쓰레드가 바뀌는 것 같다. (확인 필요)
     //reqeustSqsRepeat();
-
     reqeustSqsInterval();
   }
 
