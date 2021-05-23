@@ -2,14 +2,20 @@ package study.ms.reactive.service;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.web.ServerProperties.Netty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.ConnectableFlux;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Scheduler;
+import reactor.core.scheduler.Schedulers;
 import reactor.util.function.Tuple2;
 import reactor.util.retry.Retry;
 import study.ms.reactive.collection.SampleCollection;
@@ -153,7 +159,7 @@ public class SampleService {
   //ConnectableFlux를 connect 했을 때 그 시점부터, publish하고 subscriber가 데이터를 받을 수 있음.
   public ConnectableFlux<Integer> connectableFluxSample() {
     Flux<Integer> source = Flux.range(0, 3)
-         .doOnNext(o -> logger.debug("본체" + o))
+        .doOnNext(o -> logger.debug("본체" + o))
         .doOnSubscribe(
             o -> logger.debug("new subscription for the cold publisher ")); //TODO 이게 왜 cold지?
 
@@ -161,7 +167,9 @@ public class SampleService {
     try {
       logger.debug("잠시 대기");
       Thread.sleep(1000);
-    }catch(Exception e){ logger.debug("에러!!");}
+    } catch (Exception e) {
+      logger.debug("에러!!");
+    }
     conn.subscribe(o -> logger.debug("subscriber 1 " + o));
     conn.subscribe(o -> logger.debug("subscriber 2 " + o));
     logger.debug("잠시 또 대기");
@@ -213,6 +221,59 @@ public class SampleService {
         .transform(logUserInfo);
   }
 
+  private final ExecutorService threadPool = Executors.newFixedThreadPool(1);
+  private Scheduler scheduler = Schedulers.fromExecutor(threadPool);
+
+  AtomicInteger atomicInteger = new AtomicInteger(0);
+
+
+  //내부에서 subscribe()를 하면 어떻게 작동하는지를 확인하는 테스트
+  //다행히도 내부에서 subscribe() 를 해도,
+  //netty에서 제공되는 워커로 작업을 하는 것 같다....
+  //만약에 아니더라도,  스케쥴러를 새로 생성해서 정해진 갯수의 쓰레드로
+  //처리하게 하면 문제는 없을 것 같다.
+  //다만 주의할 것이 있다.
+  //아래의 delaySequence를 사용할 경우
+  //delay sequence 아래의 작업들은, 새로운 영역의 쓰레드에서 작업이 진행되는 것 같다.
+  //아마도 대기가 발생할때 쓰레드가 바뀌기 때문에 그렇게 해둔 것 같은데
+  //netty가 관리하는 워커의 영역은 아닌 것 같다.
+  //테스트한 바로는  이 쓰레드도 cpu *2이상의 갯수로 실행되지는 않는다.
+  //무한 쓰레드 문제는 생기지 않을 것 같아 다행이긴 한데.
+  //TODO 컨트롤할 수 있는지 확인 필요하다.
+  //delaySequence 아래 publishOn을 넣으면 publishon으로
+  //설정한 스케쥴러로 작동하기는 하지만, 바로 그 전작업까지는 다른 스레드가
+  //그 작업을 하고 있었을 것이다.
+  public Flux<String> runInnerSubscribe() {
+    int i = atomicInteger.getAndIncrement();
+
+    return Flux.range(0, 1000).flatMap((o) -> {
+            logger.debug("전담하는 쓰레드 확인  1  ");
+          Flux.just("1", "2", "3", "4")
+              //   .delaySequence(Duration.ofMillis(2000))
+              //    .limitRate(2)
+                  .publishOn(scheduler)
+              .map((c) -> {
+                logger.debug("sdsdsds 요청 순번 : {} ,첫번째 :{}, 두번째 : {}", i, o, c);
+                return c;
+              })
+              .doOnNext((c) -> logger.debug("요청 순번 : {} ,첫번째 :{}, 두번째 : {}", i, o, c))
+              //     .subscribeOn(scheduler)
+              .subscribe();
+
+          webClient.get().uri("/todos/{id}", 1)
+              .retrieve().bodyToMono(SampleWebclientDTO.class)
+              .doOnSuccess((d) -> logger.debug("결과 : {}", d))
+              .subscribe();
+
+          logger.debug("전담하는 쓰레드 확인  2 ");
+          return Flux.just("" + o);
+        }
+    );
+  }
+
+
+}
+
 //  public Flux fluxMergeSequential() {
 //    //두개의 스트림을 동시에 구독하지만,
 //    //첫번째 스트림이 끝나야 두번째 스트림의 구독을 시작함
@@ -220,12 +281,12 @@ public class SampleService {
 //    return null;
 //  }
 
-  //elapsed
-  //이전 스트림과의 간격을 확인하고자할 때 시용한다
-  //elapsed()
-  //subscribe(e -> System.out.prinln(e.getT1(), egetT2());
+//elapsed
+//이전 스트림과의 간격을 확인하고자할 때 시용한다
+//elapsed()
+//subscribe(e -> System.out.prinln(e.getT1(), egetT2());
 
-  //contextrite는 사용법의 확인이 필요하다
+//contextrite는 사용법의 확인이 필요하다
 //  public Mono<String> useContext() {
 //    Mono.just("A").contextWrite(context -> context.put("test-key",context))
 //        .map(o-> "b");
@@ -236,22 +297,20 @@ public class SampleService {
 //    return
 //  }
 
-  //주의
-  //map을 사용하면 새로운 Mono나 Flux 객체가 생성된다.
-  // Flux<String> flux = Flux.just("A")
-  // flux.map(i -> "foo" + i)
-  // flux.subscribe(System.out::println)  -> 이렇게 하면 map의 결과가 나오질 않는다.
+//주의
+//map을 사용하면 새로운 Mono나 Flux 객체가 생성된다.
+// Flux<String> flux = Flux.just("A")
+// flux.map(i -> "foo" + i)
+// flux.subscribe(System.out::println)  -> 이렇게 하면 map의 결과가 나오질 않는다.
 
-  //Processor 연산자란 것도 있는데
-  // 일단 이건 쓰는 것을 권장하지 않는다고 하니 넘어가자
+//Processor 연산자란 것도 있는데
+// 일단 이건 쓰는 것을 권장하지 않는다고 하니 넘어가자
 
-  //then과 concatwith의 차이.
-  //then은 특정 작업의 완료를 다른 갑으로 대체할 때 사용하고(그전 값이 뭐든 상관없이)
-  //concatwith는 특정 시퀀스 작업이 끝나면 그 다음에 시퀀스 작업을 진해야할 때 사용
-  //(그 전 작업이 끝난 후 concatwith 작업도 구독)
-  //startwith 는 시작할 때 같이 시작함
-
-}
+//then과 concatwith의 차이.
+//then은 특정 작업의 완료를 다른 갑으로 대체할 때 사용하고(그전 값이 뭐든 상관없이)
+//concatwith는 특정 시퀀스 작업이 끝나면 그 다음에 시퀀스 작업을 진해야할 때 사용
+//(그 전 작업이 끝난 후 concatwith 작업도 구독)
+//startwith 는 시작할 때 같이 시작함
 
 //reactor api 위치
 //https://projectreactor.io/docs/core/release/api/

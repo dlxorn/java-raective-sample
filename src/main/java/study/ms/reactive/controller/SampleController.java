@@ -122,4 +122,10 @@ public class SampleController {
     return  sampleService.getStreamDataByWebClient("1");
   }
 
+  //내부에서 작동시키는 flux는 누가 맡아서 작업을 하는지 테스트
+  @GetMapping(value="/inner-subcribe" ,produces = MediaType.APPLICATION_JSON_VALUE)
+  public Flux<String> runInnerSubscribe(){
+    return  sampleService.runInnerSubscribe();
+  }
+
 }

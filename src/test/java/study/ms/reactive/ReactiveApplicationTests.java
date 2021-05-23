@@ -444,12 +444,20 @@ class ReactiveApplicationTests {
   //백프레셔레셔 조절.
   //delaySequence와, limitRate를 이용하여
   //하단으로 압력이 몰리는 것을 막기 위해 설정
+  // 주의!!!!
+  //해당 작업처럼 딜레이 시퀀스가 있을 경우에는
+  //그 전에 있던 publishon subscribeon 설정이 안 먹힘
+  //TODO 어디에서 관리하는지는 아직 모르는,cpu *2의 쓰레드가 관리함. 확인 필요
   @Test
   public void BackpressureTest() {
+    Scheduler elasticScheduler1 = Schedulers.newParallel("subscribe thread1");
+
 
     Flux.range(0, 10)
+        .publishOn(elasticScheduler1)  //안먹힘
         .delaySequence(Duration.ofMillis(100))
         .limitRate(2)
+     //   .publishOn(elasticScheduler1)  //요건 먹힘
         .doOnNext(integer -> logger.debug("i = {}", integer))
         .collectList()
         .block();
