@@ -452,20 +452,18 @@ class ReactiveApplicationTests {
   public void BackpressureTest() {
     Scheduler elasticScheduler1 = Schedulers.newParallel("subscribe thread1");
 
-
     Flux.range(0, 10)
         .publishOn(elasticScheduler1)  //안먹힘
         .delaySequence(Duration.ofMillis(100))
         .limitRate(2)
-     //   .publishOn(elasticScheduler1)  //요건 먹힘
+        //   .publishOn(elasticScheduler1)  //요건 먹힘
         .doOnNext(integer -> logger.debug("i = {}", integer))
         .collectList()
         .block();
 
   }
 
-
-  //애러 처리 관련하여
+  //error 관련하여
 
   //flux에서 에러 처리할 때 중간에 플러스를 모노로 바꾸면, (collectList)
   //리스트에 결과를 받아야하기 때문에
@@ -476,20 +474,67 @@ class ReactiveApplicationTests {
   //onErrorContinue를 쓰면 에러 나는 부분만 제외하고 계속 작업을 진행할 수 있다.
   @Test
   public void errorTest() {
-    Scheduler elasticScheduler1 = Schedulers.newParallel("subscribe thread1");
 
+    try {
 
-    Flux.range(0, 15)
-        .flatMap((o)->{
-          if(o == 8){
-           throw new RuntimeException();
-          }
-          return Flux.just(o);
-        })
-        .onErrorContinue((o,c)->{System.out.println(o);})
-        .doOnError((o)->System.out.println("에러!!!!!!!"))
-        .doOnNext(o->System.out.println("여기다!!!" +o))
-        .blockLast();
+      Flux.range(0, 15)
+          .flatMap((o) -> {
+            if (o == 8) {
+              throw new RuntimeException();
+            }
+            return Flux.just(o);
+          })
+          .doOnError((o) -> System.out.println("에러!!!!!!!"))
+          .collectList()
+          //collectionlist가 doonnext 아래보다 밑이면, 에러나기 전 결과까지는 출력이 된다. 그런데 위에 있으면 출력 안된다
+          //컬렉션리스트를 통해 모노안에 리스트 형식으로 flux가 변환될 때에는 flux에 전달하는 결과들을 모두 리스트 저장할 때가지 기다리는 것 같다.
+          .doOnNext(o -> System.out.println("여기다!!!" + o))
+          .block();
+
+    } catch (Exception e) {
+      System.out.println("에러 케치");
+      e.printStackTrace();
+    }
+
+    try {
+      Flux.range(0, 15)
+          .flatMap((o) -> {
+            if (o == 8) {
+              throw new RuntimeException();
+            }
+            return Flux.just(o);
+          })
+          .doOnError((o) -> System.out.println("error!"))
+          .doOnNext(o -> System.out.println("next" + o))
+          .blockLast();
+
+    } catch (Exception e) {
+      System.out.println("에러 케치");
+      e.printStackTrace();
+    }
+
+    try {
+      Flux.range(0, 15)
+          .flatMap((o) -> {
+            if (o == 8) {
+              throw new RuntimeException();
+            }
+            return Flux.just(o);
+          })
+          .onErrorContinue((o, c) -> {
+            System.out.println("error continue : " + o);
+          })
+          //에러는 발생하더라도 작업은 지속된다. 내부적으로 에러를 처리한 셈이 되어,
+          //외부의 try - catch로도 안잡힌다.
+          .doOnError(o -> System.out.println("error "))
+          .doOnNext(o -> System.out.println("next :" + o))
+          .blockLast();
+
+    } catch (Exception e) {
+      System.out.println("error catch");
+      e.printStackTrace();
+    }
+
 
   }
 
