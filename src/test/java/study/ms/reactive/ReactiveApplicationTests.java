@@ -461,6 +461,36 @@ class ReactiveApplicationTests {
         .doOnNext(integer -> logger.debug("i = {}", integer))
         .collectList()
         .block();
+
+  }
+
+
+  //애러 처리 관련하여
+
+  //flux에서 에러 처리할 때 중간에 플러스를 모노로 바꾸면, (collectList)
+  //리스트에 결과를 받아야하기 때문에
+  //하나가 에러 발생시 전체 결과를 받을 수 없다.
+  //
+  //플럭스로 할 경우에는
+  //에러가 나는 지점이유부터 데이터를 받을수는 없지만.
+  //onErrorContinue를 쓰면 에러 나는 부분만 제외하고 계속 작업을 진행할 수 있다.
+  @Test
+  public void errorTest() {
+    Scheduler elasticScheduler1 = Schedulers.newParallel("subscribe thread1");
+
+
+    Flux.range(0, 15)
+        .flatMap((o)->{
+          if(o == 8){
+           throw new RuntimeException();
+          }
+          return Flux.just(o);
+        })
+        .onErrorContinue((o,c)->{System.out.println(o);})
+        .doOnError((o)->System.out.println("에러!!!!!!!"))
+        .doOnNext(o->System.out.println("여기다!!!" +o))
+        .blockLast();
+
   }
 
 }

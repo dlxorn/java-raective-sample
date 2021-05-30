@@ -164,7 +164,7 @@ public class AwsSqsStreamSampleService {
               .doOnSuccess((t)->logger.debug("depth 2 로그 : {}",t))
               .subscribe();
         })
-        .doOnNext((t)->logger.debug("depth 1 로 : {}",t))
+        .doOnNext((t)->logger.debug("depth 1 로그 : {}",t))
         .subscribe();
   }
 
