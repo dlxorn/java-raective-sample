@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,9 @@ import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 //받아온 큐를 스트림이 가능한, webflux에 저장하는 구조
 @Service
 public class AwsSqsStreamSampleService {
+
+  private final Logger logger = LoggerFactory.getLogger(this.getClass());
+
 
   @Autowired
   private SqsAsyncClient sqsAsyncClient;
@@ -122,7 +127,9 @@ public class AwsSqsStreamSampleService {
   }
 
 
-  //위에랑 똑같은데 위에는 리피트를 썼고, 여기는 인터벌을 썼음.
+  //위에랑 처리 로직은 같은데
+  //여기는 인터벌을 쓰고,
+  //컨텍스트맵을 사용안함.
   public void reqeustSqsInterval() {
 
     Flux.interval(Duration.ofSeconds(1L))
@@ -130,15 +137,9 @@ public class AwsSqsStreamSampleService {
             sqsAsyncClient
                 .getQueueUrl(GetQueueUrlRequest.builder().queueName(QueueName).build())
         )).timeout(Duration.ofSeconds(10))
-        .log()
-        .flatMap(o -> {
-      return Mono.deferContextual(contextView -> {
-        Map<String, Object> map = contextView.get("ContextMap");
-        map.put("queueUrl", o.queueUrl());
-        return Mono.just(o);
-      });
-    }).
-        flatMap((o) -> {
+        .log()          //로그도 삭제할까?
+        .doOnNext(o -> {
+          String queueUrl = o.queueUrl();
           CompletableFuture<ReceiveMessageResponse> receiveMessageResponse = sqsAsyncClient
               .receiveMessage(
                   ReceiveMessageRequest.builder()
@@ -148,34 +149,24 @@ public class AwsSqsStreamSampleService {
                       .visibilityTimeout(30)
                       .build()
               );
-          return Mono.fromFuture(receiveMessageResponse);
+          Mono.fromFuture(receiveMessageResponse)
+              .doOnNext((d) -> d.messages().stream().forEach((c) -> {
+                sink.tryEmitNext(c.body());
+                DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder()
+                    .queueUrl(queueUrl)
+                    .receiptHandle(c.receiptHandle())
+                    .build();
+                Mono.fromFuture(sqsAsyncClient
+                    .deleteMessage(deleteMessageRequest))
+                    .doOnSuccess((t)->logger.debug("depth 3 로그 : {}",t))
+                    .subscribe();
+              }))
+              .doOnSuccess((t)->logger.debug("depth 2 로그 : {}",t))
+              .subscribe();
         })
-        .doOnNext(o -> o.messages().stream().forEach((c) -> sink.tryEmitNext(c.body())))
-        .flatMap(o -> Mono.deferContextual(contextView -> {
-          Map<Object, Object> map = contextView.get("ContextMap");
-          String queueUrl = (String) map.get("queueUrl");
-
-          List<CompletableFuture> list = new ArrayList<>();
-          o.messages().stream().forEach((c) -> {
-            DeleteMessageRequest deleteMessageRequest = DeleteMessageRequest.builder()
-                .queueUrl(queueUrl)
-                .receiptHandle(c.receiptHandle())
-                .build();
-            list.add(sqsAsyncClient
-                .deleteMessage(deleteMessageRequest));
-          });
-          return Mono.just(list);
-        })).flatMap((o) -> Mono.just(o).flatMapMany(Flux::fromIterable))
-        //contextWrite 사용할 때에 주의점
-        //해당 값은 webflux 요청 끼리 모두 공유한다.
-        //상단해서 특정한 요소만 처리하기 위한 결과만을 처리하기 위해
-        //컨텍스트 라이트를 쓰기는 조금 어려울 것 같다.
-        //위 로직에서 사용시 문제가 없는 것은 queryUrl값이 같은 값이기 때문
-        .contextWrite(ctx -> ctx.put("ContextMap", new HashMap<String, Object>()))
-        .subscribeOn(Schedulers.single()).
-        subscribe();
+        .doOnNext((t)->logger.debug("depth 1 로 : {}",t))
+        .subscribe();
   }
-
 
 
 }
