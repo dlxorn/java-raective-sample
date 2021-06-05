@@ -19,7 +19,6 @@ import reactor.core.publisher.Sinks;
 import reactor.core.scheduler.Schedulers;
 import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 import software.amazon.awssdk.services.sqs.model.DeleteMessageRequest;
-import software.amazon.awssdk.services.sqs.model.DeleteMessageResponse;
 import software.amazon.awssdk.services.sqs.model.GetQueueUrlRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageRequest;
 import software.amazon.awssdk.services.sqs.model.ReceiveMessageResponse;
@@ -47,7 +46,7 @@ public class AwsSqsStreamSampleService {
   public void postConstruct() {
     //TODO 리피트는 반복 작업을 할 때마다 쓰레드가 안바뀌고 인터벌은 관리하는 쓰레드가 바뀌는 것 같다. (확인 필요)
     //reqeustSqsRepeat();
-    reqeustSqsInterval();
+    //reqeustSqsInterval();
   }
 
 
@@ -81,13 +80,13 @@ public class AwsSqsStreamSampleService {
             .getQueueUrl(GetQueueUrlRequest.builder().queueName(QueueName).build())
     ).repeatWhen(completed -> completed.delaySequence(Duration.ofSeconds(1L)))
         .timeout(Duration.ofSeconds(10))
-        .log().flatMap(o -> {
-      return Mono.deferContextual(contextView -> {
-        Map<String, Object> map = contextView.get("ContextMap");
-        map.put("queueUrl", o.queueUrl());
-        return Mono.just(o);
-      });
-    }).
+        .flatMap(o -> {
+          return Mono.deferContextual(contextView -> {
+            Map<String, Object> map = contextView.get("ContextMap");
+            map.put("queueUrl", o.queueUrl());
+            return Mono.just(o);
+          });
+        }).
         flatMap((o) -> {
           CompletableFuture<ReceiveMessageResponse> receiveMessageResponse = sqsAsyncClient
               .receiveMessage(
@@ -137,7 +136,6 @@ public class AwsSqsStreamSampleService {
             sqsAsyncClient
                 .getQueueUrl(GetQueueUrlRequest.builder().queueName(QueueName).build())
         )).timeout(Duration.ofSeconds(10))
-        .log()          //로그도 삭제할까?
         .doOnNext(o -> {
           String queueUrl = o.queueUrl();
           CompletableFuture<ReceiveMessageResponse> receiveMessageResponse = sqsAsyncClient

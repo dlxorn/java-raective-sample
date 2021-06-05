@@ -8,7 +8,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.autoconfigure.web.ServerProperties.Netty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.ConnectableFlux;
@@ -65,7 +64,7 @@ public class SampleService {
 
   public Mono<SampleWebclientDTO> getDataByWebClient(String id) {
     return webClient.get().uri("/todos/{id}", id).retrieve().bodyToMono(SampleWebclientDTO.class)
-        .log();
+        ;
   }
 
 
@@ -76,14 +75,14 @@ public class SampleService {
     return webClient.get().uri("/todos/{id}", id).retrieve().bodyToMono(SampleWebclientDTO.class)
         .repeatWhen(completed -> completed.delaySequence(Duration.ofSeconds(1L)))
         .timeout(Duration.ofSeconds(10))
-        .log();
+        ;
   }
 
 
   public Mono<SampleWebClientCollection> postDataByWebClient(String id) {
     return webClient.get().uri("/todos/{id}", id)
         .retrieve().bodyToMono(SampleWebclientDTO.class)
-        .log()
+
         //Exception handler에서 오류가 터지지 않도록 하기 위해
         //on ErrorResume를 쓰면, 에러난 값을 바꿀 순 있다.
         //그 결과가 아래처럼 쭉 내려간다.
