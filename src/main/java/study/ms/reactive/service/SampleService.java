@@ -251,10 +251,6 @@ public class SampleService {
               //   .delaySequence(Duration.ofMillis(2000))
               //    .limitRate(2)
                   .publishOn(scheduler)
-              .map((c) -> {
-                logger.debug("sdsdsds 요청 순번 : {} ,첫번째 :{}, 두번째 : {}", i, o, c);
-                return c;
-              })
               .doOnNext((c) -> logger.debug("요청 순번 : {} ,첫번째 :{}, 두번째 : {}", i, o, c))
               //     .subscribeOn(scheduler)
               .subscribe();
